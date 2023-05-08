@@ -29,7 +29,7 @@ export function History(){
         keyExtractor={item => item}
         renderItem={({ item }) => <HistoryCard />}
         renderSectionHeader={({ section }) => (
-          <Heading color="gray.200" fontSize="md" mt={10} mb={3} >
+          <Heading color="gray.200" fontSize="md" mt={10} mb={3} fontFamily="heading" >
             {section.title}
           </Heading>
         )}
@@ -38,7 +38,7 @@ export function History(){
           exercises.length === 0 && { flex: 1, justifyContent: 'center' }
         }
         ListEmptyComponent={() => (
-          <Heading color="gray.200" fontSize="md" textAlign="center" >
+          <Heading color="gray.200" fontSize="md" textAlign="center" fontFamily="heading" >
             Não há exercícios realizados ainda 😢 {'\n'}
             Vamos treinar?
           </Heading>
