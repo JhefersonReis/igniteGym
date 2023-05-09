@@ -1,14 +1,19 @@
 import { useNavigation } from '@react-navigation/native';
-import { VStack, Image, Text, Center, Heading, ScrollView } from 'native-base';
+import { VStack, Image, Text, Center, Heading, ScrollView, Toast } from 'native-base';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+
+import { useAuth } from '@hooks/useAuth';
+import { api } from '@services/api';
 
 import LogoSvg from '@assets/logo.svg';
 import BackgroundImg from '@assets/background.png';
 
 import { Input } from '@components/Input';
 import { Button } from '@components/Button';
+import { AppError } from '@utils/AppError';
+import { useState } from 'react';
 
 type FormDataProps = {
   name: string;
@@ -27,6 +32,7 @@ const signUpSchema = yup.object().shape({
 });
 
 export function SignUp(){
+  const [isLoading, setIsLoading] = useState(false);
 
   const { 
     control,
@@ -37,19 +43,36 @@ export function SignUp(){
   });
 
   const navigation = useNavigation();
+  const { signIn } = useAuth();
 
   function handleGoBack(){
     navigation.goBack();
   }
 
-  function handleSignUp(data: FormDataProps){
-    console.log(data)
+  async function handleSignUp({ name, email, password }: FormDataProps){
+    setIsLoading(true);
+    try{
+      await api.post('/users', { name, email, password });
+      await signIn( email, password );
+
+    } catch(error){
+      const isAppError = error instanceof AppError;
+      const title = isAppError ? error.message : 'Ocorreu um erro ao fazer o cadastro';
+      setIsLoading(false);
+
+      Toast.show({
+        title: title,
+        placement: 'top',
+        bgColor: 'red.500'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false} >
       <VStack flex={1} px={10} >
-
         <Image
           source={BackgroundImg}
           defaultSource={BackgroundImg}
@@ -129,7 +152,11 @@ export function SignUp(){
             )}
           />
 
-          <Button title='Criar e Acessar' onPress={handleSubmit(handleSignUp)} />
+          <Button
+            title='Criar e Acessar'
+            onPress={handleSubmit(handleSignUp)}
+            isLoading={isLoading}
+          />
         </Center>
 
         <Button title='Voltar para o login' variant="outline" mt={16} onPress={handleGoBack} />

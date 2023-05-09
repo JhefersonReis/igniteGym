@@ -31,6 +31,7 @@ export function Input({ errorMessage = null, isInvalid, ...rest }: Props) {
           borderWidth: 1,
           borderColor: "green.500",
         }}
+        autoCorrect={false}
         {...rest}
       />
     </FormControl>

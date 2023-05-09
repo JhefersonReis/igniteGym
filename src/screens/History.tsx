@@ -29,7 +29,7 @@ export function History(){
         keyExtractor={item => item}
         renderItem={({ item }) => <HistoryCard />}
         renderSectionHeader={({ section }) => (
-          <Heading color="gray.200" fontSize="md" mt={10} mb={3} fontFamily="heading" >
+          <Heading color="gray.200" fontSize="md" mt={10} mb={3} fontFamily="heading">
             {section.title}
           </Heading>
         )}
@@ -44,6 +44,7 @@ export function History(){
           </Heading>
         )}
         showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
       />
     </VStack>
   );

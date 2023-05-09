@@ -1,19 +1,68 @@
-import { VStack, Image, Text, Center, Heading, ScrollView } from 'native-base';
+import { VStack, Image, Text, Center, Heading, ScrollView, Toast } from 'native-base';
 import { useNavigation } from '@react-navigation/native';
+import * as yup from 'yup';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+
+import { useAuth } from '@hooks/useAuth';
 
 import { AuthNavigatorRoutesProps } from '@routes/auth.routes';
 import LogoSvg from '@assets/logo.svg';
 import BackgroundImg from '@assets/background.png';
 import { Input } from '@components/Input';
 import { Button } from '@components/Button';
+import { AppError } from '@utils/AppError';
+import { useState } from 'react';
+
+type LoginFormDataProps = {
+  email: string;
+  password: string;
+};
+
+const loginSchema = yup.object().shape({
+  email: yup.string().email('E-mail inválido').required('E-mail é obrigatório'),
+  password: yup.string().required('Senha é obrigatória'),
+});
 
 export function SignIn(){
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn } = useAuth();
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<LoginFormDataProps>({
+    resolver: yupResolver(loginSchema)
+  });
 
   const navigation = useNavigation<AuthNavigatorRoutesProps>();
 
   function handleNewAccount(){
     navigation.navigate('signUp');
   }
+
+
+  async function handleSignIn({ email, password }: LoginFormDataProps){
+    setIsLoading(true);
+    try{
+      await signIn(email, password);
+    }catch(error){
+      const isAppError = error instanceof AppError;
+      const title = isAppError ? error.message : 'Algo deu errado, tente novamente mais tarde!';
+
+      if(isAppError){
+        Toast.show({
+          title,
+          bgColor: 'red.500',
+          placement: 'top'
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false} >
@@ -40,18 +89,42 @@ export function SignIn(){
             Acesse sua conta
           </Heading>
 
-          <Input 
-            placeholder='E-mail'
-            keyboardType='email-address'
-            autoCapitalize='none'
+          <Controller
+            name='email'
+            control={control}
+            render={({ field: { onChange, value } }) => (
+              <Input 
+                value={value}
+                placeholder='E-mail'
+                autoCapitalize='none'
+                onChangeText={onChange}
+                keyboardType='email-address'
+                errorMessage={errors.email?.message}
+              />
+            )}
           />
 
-          <Input 
-            placeholder='Senha'
-            secureTextEntry
+          <Controller
+            name='password'
+            control={control}
+            render={({ field: { onChange, value } }) => (
+              <Input 
+                value={value}
+                secureTextEntry
+                placeholder='Senha'
+                onChangeText={onChange}
+                errorMessage={errors.password?.message}
+                returnKeyType='send'
+                onSubmitEditing={handleSubmit(handleSignIn)}
+              />
+            )}
           />
 
-          <Button title='Acessar' />
+          <Button
+            title='Acessar'
+            onPress={handleSubmit(handleSignIn)}
+            isLoading={isLoading}
+          />
 
         </Center>
 
