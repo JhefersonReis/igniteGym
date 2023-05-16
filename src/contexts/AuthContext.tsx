@@ -9,6 +9,7 @@ export type AuthContextDataProps = {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isLoadingUserStorageData: boolean;
+  updateUserProfile: ( userUpdated: UserDTO ) => Promise<void>;
 }
 
 type AuthContextProviderProps = {
@@ -26,11 +27,11 @@ export function AuthContextProvider({ children }: AuthContextProviderProps){
     setUser(userData);
   }
 
-  async function storageUserAndTokenSave(userData:UserDTO, token: string) {
+  async function storageUserAndTokenSave(userData:UserDTO, token: string, refresh_token: string ) {
     setIsLoadingUserStorageData(true);
     try {
       await storageUserSave(userData);
-      await storageAuthTokenSave(token);
+      await storageAuthTokenSave({ token, refresh_token });
     }catch (error) {
       throw error;
     }finally {
@@ -45,8 +46,8 @@ export function AuthContextProvider({ children }: AuthContextProviderProps){
         password
       })
   
-      if(data.user && data.token){
-        await storageUserAndTokenSave(data.user, data.token);
+      if(data.user && data.token && data.refresh_token){
+        await storageUserAndTokenSave(data.user, data.token, data.refresh_token);
         userAndTokenUpdate(data.user, data.token)
       }
     } catch(error){
@@ -67,6 +68,15 @@ export function AuthContextProvider({ children }: AuthContextProviderProps){
       throw error;
     } finally {
       setIsLoadingUserStorageData(false);
+    }
+  }
+
+  async function updateUserProfile( userUpdated: UserDTO ){
+    try {
+      setUser(userUpdated);
+      await storageUserSave(userUpdated);
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -92,8 +102,16 @@ export function AuthContextProvider({ children }: AuthContextProviderProps){
     loadUserData();
   }, []);
 
+  useEffect(() => {
+    const subscribe = api.registerInterceptTokenManager(signOut);
+
+    return () => {
+      subscribe()
+    }
+  }, [signOut]);
+
   return(
-    <AuthContext.Provider value={{ user, signIn, signOut,isLoadingUserStorageData }} >
+    <AuthContext.Provider value={{ user, signIn, signOut,isLoadingUserStorageData, updateUserProfile }} >
       {children}
     </AuthContext.Provider>
   );

@@ -12,6 +12,9 @@ import { Button } from "@components/Button";
 import { UserPhoto } from "@components/UserPhoto";
 import { ScreenHeader } from "@components/ScreenHeader";
 import { useAuth } from "@hooks/useAuth";
+import { api } from "@services/api";
+import { AppError } from "@utils/AppError";
+import PhotoUserSvg from '@assets/userPhotoDefault.png'
 
 const PHOTO_SIZE = 33;
 LogBox.ignoreAllLogs();
@@ -27,15 +30,23 @@ type FormDataProps = {
 const profileSchema = yup.object().shape({
   name: yup.string().required('Nome é obrigatório'),
   password: yup.string().min(6, 'A senha deve ter no mínimo 6 caracteres').nullable().transform(value => value === '' ? null : value),
-  confirm_password: yup.string().oneOf([ null, yup.ref('password')], 'As senhas devem ser iguais').nullable().transform(value => value === '' ? null : value),
+  confirm_password: yup
+    .string()
+    .nullable()
+    .transform((value) => !!value ? value : null)
+    .oneOf([yup.ref('password'), null], 'As senhas devem ser iguais')
+    .when('password', (value: any, schema: any) => {
+      if (value > 0) return schema.required('Confirmação de senha é obrigatória');
+    }
+  ),
 });
 
 export function Profile(){
+  const [updating, setUpdating] = useState(false);
   const [photoIsLoading, setPhotoIsLoading] = useState(false);
-  const [userPhoto, setUserPhoto] = useState('https://upload.wikimedia.org/wikipedia/commons/2/23/Lil-Peep_PrettyPuke_Photoshoot.png')
 
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const { control, handleSubmit, formState: { errors } } = useForm<FormDataProps>({
     defaultValues: {
       name: user.name,
@@ -71,7 +82,31 @@ export function Profile(){
             })
           }
         }
-        setUserPhoto(photoSelected.assets[0].uri);
+
+        const fileExtension = photoSelected.assets[0].uri.split('.').pop();
+
+        const photoFile = {
+          name: `${user.name}.${fileExtension}`.toLowerCase(),
+          uri: photoSelected.assets[0].uri,
+          type: `${photoSelected.assets[0].type}/${fileExtension}`
+        } as any;
+
+        const userPhotoUploadForm = new FormData();
+
+        userPhotoUploadForm.append('avatar', photoFile);
+
+        const avatarUpdtedResponse = await api.patch('/users/avatar', userPhotoUploadForm, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        const userUpdated = user;
+
+        userUpdated.avatar = avatarUpdtedResponse.data.avatar;
+
+        await updateUserProfile(userUpdated);
+
         toast.show({
           title: 'Foto atualizada com sucesso!',
           placement: 'top',
@@ -87,7 +122,34 @@ export function Profile(){
   }
 
   async function handleProfileUpdate(data: FormDataProps){
-    console.log(data);
+    setUpdating(true);
+    try {
+      await api.put('/users', data);
+
+      const userUpdated = user;
+      userUpdated.name = data.name;
+      
+      await updateUserProfile(userUpdated);
+
+      toast.show({
+        title: 'Perfil atualizado com sucesso!',
+        placement: 'top',
+        bgColor: 'green.600'
+      });
+      
+    } catch (error) {
+      const isAppError = error instanceof AppError;
+      const title = isAppError ? error.message : 'Ocorreu um erro ao atualizar o perfil.';
+
+      toast.show({
+        title,
+        placement: 'top',
+        bgColor: 'red.500'
+      });
+      
+    } finally {
+      setUpdating(false);
+    }
   }
 
   return(
@@ -107,13 +169,12 @@ export function Profile(){
             />
           :
             <UserPhoto
-              source={{
-                uri: userPhoto,
-              }}
+              source={ user.avatar ? { uri: `${api.defaults.baseURL}/avatar/${user.avatar}` } : PhotoUserSvg }
               size={PHOTO_SIZE}
               alt="Imagem de Perfil"
             />
           }
+
           <TouchableOpacity onPress={handleSelectImage}>
             <Text color="green.500" fontWeight="bold" fontSize="md" mt={2} mb={8} >
               Alterar foto
@@ -199,6 +260,7 @@ export function Profile(){
             title="Atualizar"
             mt={4}
             onPress={handleSubmit(handleProfileUpdate)}
+            isLoading={updating}
           />
         </VStack>
       </ScrollView>
