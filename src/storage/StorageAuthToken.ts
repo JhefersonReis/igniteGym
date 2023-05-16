@@ -17,7 +17,7 @@ export async function storageAuthTokenGet() {
 
   const { token, refresh_token }: StorageAuthTokenProps = response ? JSON.parse(response) : {}
 
-  return token;
+  return {token, refresh_token};
 }
 
 export async function storageAuthTokenRemove() {
